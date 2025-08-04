@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KTV记账助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        dark: '#1F2937',
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Helvetica Neue', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .shadow-card {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            }
+            .ios-bottom {
+                padding-bottom: constant(safe-area-inset-bottom);
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-dark ios-bottom">
+    <!-- 顶部导航 -->
+    <header class="bg-primary text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold">KTV记账助手</h1>
+            <button id="addBtn" class="bg-white text-primary rounded-full w-10 h-10 flex items-center justify-center shadow-md">
+                <i class="fa fa-plus"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- 标签页导航 -->
+        <div class="flex border-b border-gray-200 mb-6">
+            <button class="tab-btn active py-2 px-4 font-medium text-primary border-b-2 border-primary" data-tab="records">
+                <i class="fa fa-list mr-1"></i> 记录
+            </button>
+            <button class="tab-btn py-2 px-4 font-medium text-gray-500" data-tab="monthly">
+                <i class="fa fa-calendar mr-1"></i> 月度统计
+            </button>
+            <button class="tab-btn py-2 px-4 font-medium text-gray-500" data-tab="daily">
+                <i class="fa fa-bar-chart mr-1"></i> 每日统计
+            </button>
+        </div>
+
+        <!-- 记录列表页面 -->
+        <div id="records-tab" class="tab-content block">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">业绩记录</h2>
+                <div class="text-sm text-gray-500">
+                    共 <span id="recordCount">0</span> 条记录
+                </div>
+            </div>
+            
+            <div id="recordsList" class="space-y-3">
+                <!-- 记录会通过JS动态添加 -->
+                <div class="text-center text-gray-500 py-10">
+                    <i class="fa fa-file-text-o text-4xl mb-3 opacity-30"></i>
+                    <p>暂无记录，点击右上角添加</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月度统计页面 -->
+        <div id="monthly-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">选择月份</h2>
+                    <div class="flex space-x-2">
+                        <button id="prevMonth" class="p-2 rounded-full hover:bg-gray-100">
+                            <i class="fa fa-chevron-left"></i>
+                        </button>
+                        <button id="nextMonth" class="p-2 rounded-full hover:bg-gray-100">
+                            <i class="fa fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-center py-4">
+                    <h3 id="currentMonth" class="text-xl font-bold mb-2">2023年6月</h3>
+                    <div class="text-3xl font-bold text-secondary" id="monthlyTotal">¥0.00</div>
+                    <p class="text-gray-500 mt-1">本月总业绩</p>
+                </div>
+            </div>
+
+            <h3 class="text-base font-semibold mb-3">每日业绩</h3>
+            <div class="bg-white rounded-lg shadow-card p-4">
+                <canvas id="monthlyChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- 每日统计页面 -->
+        <div id="daily-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                <h2 class="text-lg font-semibold mb-4">选择日期</h2>
+                <input type="date" id="dailyDate" class="w-full p-2 border border-gray-300 rounded-lg">
+                
+                <div class="text-center py-4 mt-4">
+                    <h3 id="currentDay" class="text-xl font-bold mb-2">2023年6月15日</h3>
+                    <div class="text-3xl font-bold text-secondary" id="dailyTotal">¥0.00</div>
+                    <p class="text-gray-500 mt-1">当日总业绩</p>
+                </div>
+            </div>
+
+            <h3 class="text-base font-semibold mb-3">当日记录</h3>
+            <div id="dailyRecordsList" class="space-y-3">
+                <!-- 每日记录会通过JS动态添加 -->
+                <div class="text-center text-gray-500 py-10">
+                    <i class="fa fa-calendar-o text-4xl mb-3 opacity-30"></i>
+                    <p>该日暂无记录</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 添加记录弹窗 -->
+    <div id="addModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-md shadow-xl transform transition-all">
+            <div class="p-5 border-b border-gray-200">
+                <h3 class="text-lg font-bold">添加业绩记录</h3>
+            </div>
+            <div class="p-5">
+                <form id="addForm">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+                        <input type="date" id="recordDate" class="w-full p-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">房号</label>
+                        <input type="text" id="roomNumber" placeholder="例如：801" class="w-full p-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">业绩金额</label>
+                        <input type="number" step="0.01" id="performance" placeholder="0.00" class="w-full p-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">接待费</label>
+                        <input type="number" step="0.01" id="receptionFee" placeholder="0.00" class="w-full p-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">订房人</label>
+                        <input type="text" id="booker" placeholder="姓名或昵称" class="w-full p-2 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" id="cancelBtn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                            取消
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储与管理
+        class KTVData {
+            constructor() {
+                this.records = JSON.parse(localStorage.getItem('ktvRecords')) || [];
+            }
+            
+            // 保存记录到本地存储
+            save() {
+                localStorage.setItem('ktvRecords', JSON.stringify(this.records));
+            }
+            
+            // 添加新记录
+            addRecord(record) {
+                this.records.push({
+                    id: Date.now().toString(), // 用时间戳作为唯一ID
+                    ...record
+                });
+                this.save();
+                return this.records[this.records.length - 1];
+            }
+            
+            // 删除记录
+            deleteRecord(id) {
+                this.records = this.records.filter(record => record.id !== id);
+                this.save();
+            }
+            
+            // 获取所有记录
+            getAllRecords() {
+                // 按日期倒序排列
+                return [...this.records].sort((a, b) => new Date(b.date) - new Date(a.date));
+            }
+            
+            // 获取指定月份的记录
+            getRecordsByMonth(year, month) {
+                return this.records.filter(record => {
+                    const date = new Date(record.date);
+                    return date.getFullYear() === year && date.getMonth() === month;
+                });
+            }
+            
+            // 获取指定日期的记录
+            getRecordsByDate(date) {
+                const targetDate = new Date(date).toISOString().split('T')[0];
+                return this.records.filter(record => {
+                    return new Date(record.date).toISOString().split('T')[0] === targetDate;
+                });
+            }
+            
+            // 计算月度总业绩
+            calculateMonthlyTotal(year, month) {
+                const records = this.getRecordsByMonth(year, month);
+                return records.reduce((total, record) => total + parseFloat(record.performance), 0);
+            }
+            
+            // 计算每日总业绩
+            calculateDailyTotal(date) {
+                const records = this.getRecordsByDate(date);
+                return records.reduce((total, record) => total + parseFloat(record.performance), 0);
+            }
+        }
+
+        // 初始化数据
+        const ktvData = new KTVData();
+        let monthlyChart = null;
+        let currentMonth = new Date();
+
+        // DOM元素
+        const addBtn = document.getElementById('addBtn');
+        const addModal = document.getElementById('addModal');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const addForm = document.getElementById('addForm');
+        const recordsList = document.getElementById('recordsList');
+        const recordCount = document.getElementById('recordCount');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const currentMonthEl = document.getElementById('currentMonth');
+        const monthlyTotalEl = document.getElementById('monthlyTotal');
+        const prevMonthBtn = document.getElementById('prevMonth');
+        const nextMonthBtn = document.getElementById('nextMonth');
+        const dailyDateInput = document.getElementById('dailyDate');
+        const currentDayEl = document.getElementById('currentDay');
+        const dailyTotalEl = document.getElementById('dailyTotal');
+        const dailyRecordsList = document.getElementById('dailyRecordsList');
+
+        // 初始化
+        function init() {
+            // 设置默认日期
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('recordDate').value = today;
+            dailyDateInput.value = today;
+            
+            // 更新当前日期显示
+            updateCurrentDayDisplay();
+            
+            // 加载记录
+            renderRecords();
+            
+            // 初始化月度统计
+            updateMonthlyDisplay();
+            
+            // 初始化每日统计
+            renderDailyRecords();
+            
+            // 初始化图表
+            initMonthlyChart();
+        }
+
+        // 渲染所有记录
+        function renderRecords() {
+            const records = ktvData.getAllRecords();
+            recordCount.textContent = records.length;
+            
+            if (records.length === 0) {
+                recordsList.innerHTML = `
+                    <div class="text-center text-gray-500 py-10">
+                        <i class="fa fa-file-text-o text-4xl mb-3 opacity-30"></i>
+                        <p>暂无记录，点击右上角添加</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            recordsList.innerHTML = '';
+            records.forEach(record => {
+                const date = new Date(record.date);
+                const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                
+                const recordEl = document.createElement('div');
+                recordEl.className = 'bg-white rounded-lg shadow-card p-4 transition-all hover:shadow-lg';
+                recordEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-semibold text-lg">房号: ${record.roomNumber}</h4>
+                            <p class="text-gray-500 text-sm mt-1">订房人: ${record.booker}</p>
+                            <p class="text-gray-500 text-sm">日期: ${formattedDate}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-secondary font-bold">¥${parseFloat(record.performance).toFixed(2)}</p>
+                            <p class="text-accent text-sm">接待费: ¥${parseFloat(record.receptionFee).toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <button class="delete-btn mt-3 text-red-500 text-sm flex items-center" data-id="${record.id}">
+                        <i class="fa fa-trash-o mr-1"></i> 删除
+                    </button>
+                `;
+                recordsList.appendChild(recordEl);
+            });
+            
+            // 添加删除事件监听
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    if (confirm('确定要删除这条记录吗？')) {
+                        ktvData.deleteRecord(id);
+                        renderRecords();
+                        updateMonthlyDisplay();
+                        renderDailyRecords();
+                    }
+                });
+            });
+        }
+
+        // 初始化月度图表
+        function initMonthlyChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '业绩',
+                        data: [],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '¥' + value;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新月度显示
+        function updateMonthlyDisplay() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            
+            // 更新月份标题
+            currentMonthEl.textContent = `${year}年${month + 1}月`;
+            
+            // 计算月度总业绩
+            const total = ktvData.calculateMonthlyTotal(year, month);
+            monthlyTotalEl.textContent = `¥${total.toFixed(2)}`;
+            
+            // 更新图表
+            updateMonthlyChart();
+        }
+
+        // 更新月度图表数据
+        function updateMonthlyChart() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            
+            // 获取当月天数
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            // 准备图表数据
+            const labels = [];
+            const data = [];
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                labels.push(`${day}日`);
+                
+                const date = new Date(year, month, day);
+                const dailyTotal = ktvData.calculateDailyTotal(date);
+                data.push(dailyTotal);
+            }
+            
+            // 更新图表
+            monthlyChart.data.labels = labels;
+            monthlyChart.data.datasets[0].data = data;
+            monthlyChart.update();
+        }
+
+        // 更新当前日期显示
+        function updateCurrentDayDisplay() {
+            const date = new Date(dailyDateInput.value);
+            currentDayEl.textContent = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+            
+            // 计算当日总业绩
+            const total = ktvData.calculateDailyTotal(date);
+            dailyTotalEl.textContent = `¥${total.toFixed(2)}`;
+        }
+
+        // 渲染每日记录
+        function renderDailyRecords() {
+            const date = dailyDateInput.value;
+            const records = ktvData.getRecordsByDate(date);
+            
+            if (records.length === 0) {
+                dailyRecordsList.innerHTML = `
+                    <div class="text-center text-gray-500 py-10">
+                        <i class="fa fa-calendar-o text-4xl mb-3 opacity-30"></i>
+                        <p>该日暂无记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            dailyRecordsList.innerHTML = '';
+            records.forEach(record => {
+                const recordEl = document.createElement('div');
+                recordEl.className = 'bg-white rounded-lg shadow-card p-4';
+                recordEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-semibold">房号: ${record.roomNumber}</h4>
+                            <p class="text-gray-500 text-sm mt-1">订房人: ${record.booker}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-secondary font-bold">¥${parseFloat(record.performance).toFixed(2)}</p>
+                            <p class="text-accent text-sm">接待费: ¥${parseFloat(record.receptionFee).toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+                dailyRecordsList.appendChild(recordEl);
+            });
+        }
+
+        // 事件监听 - 标签页切换
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 移除所有激活状态
+                tabBtns.forEach(b => {
+                    b.classList.remove('active', 'text-primary', 'border-b-2', 'border-primary');
+                    b.classList.add('text-gray-500');
+                });
+                
+                // 添加当前激活状态
+                btn.classList.add('active', 'text-primary', 'border-b-2', 'border-primary');
+                btn.classList.remove('text-gray-500');
+                
+                // 隐藏所有内容
+                tabContents.forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('block');
+                });
+                
+                // 显示当前内容
+                const tabId = btn.dataset.tab;
+                document.getElementById(`${tabId}-tab`).classList.remove('hidden');
+                document.getElementById(`${tabId}-tab`).classList.add('block');
+            });
+        });
+
+        // 事件监听 - 打开添加弹窗
+        addBtn.addEventListener('click', () => {
+            addModal.classList.remove('hidden');
+            addModal.classList.add('flex');
+        });
+
+        // 事件监听 - 关闭添加弹窗
+        cancelBtn.addEventListener('click', () => {
+            addModal.classList.add('hidden');
+            addModal.classList.remove('flex');
+            addForm.reset();
+            document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+        });
+
+        // 事件监听 - 提交表单
+        addForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const date = document.getElementById('recordDate').value;
+            const roomNumber = document.getElementById('roomNumber').value;
+            const performance = document.getElementById('performance').value;
+            const receptionFee = document.getElementById('receptionFee').value;
+            const booker = document.getElementById('booker').value;
+            
+            // 简单验证
+            if (!roomNumber || !performance) {
+                alert('请填写房号和业绩金额');
+                return;
+            }
+            
+            // 添加记录
+            ktvData.addRecord({
+                date,
+                roomNumber,
+                performance,
+                receptionFee: receptionFee || '0',
+                booker: booker || '未知'
+            });
+            
+            // 关闭弹窗并重置表单
+            addModal.classList.add('hidden');
+            addModal.classList.remove('flex');
+            addForm.reset();
+            document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+            
+            // 更新界面
+            renderRecords();
+            updateMonthlyDisplay();
+            renderDailyRecords();
+        });
+
+        // 事件监听 - 月份切换
+        prevMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            updateMonthlyDisplay();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            updateMonthlyDisplay();
+        });
+
+        // 事件监听 - 日期选择变化
+        dailyDateInput.addEventListener('change', () => {
+            updateCurrentDayDisplay();
+            renderDailyRecords();
+        });
+
+        // 点击空白处关闭弹窗
+        addModal.addEventListener('click', (e) => {
+            if (e.target === addModal) {
+                addModal.classList.add('hidden');
+                addModal.classList.remove('flex');
+            }
+        });
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
